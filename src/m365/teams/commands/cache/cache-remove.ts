@@ -22,6 +22,8 @@ interface Win32Process {
 }
 
 class TeamsCacheRemoveCommand extends AnonymousCommand {
+  private static readonly allowedClients: string[] = ['new', 'classic'];
+
   public get name(): string {
     return commands.CACHE_REMOVE;
   }
@@ -41,6 +43,7 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
   #initTelemetry(): void {
     this.telemetry.push((args: CommandArgs) => {
       Object.assign(this.telemetryProperties, {
+        client: typeof args.options.client !== 'undefined',
         force: !!args.options.force
       });
     });
@@ -49,6 +52,10 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
   #initOptions(): void {
     this.options.unshift(
       {
+        option: '-c, --client',
+        autocomplete: TeamsCacheRemoveCommand.allowedClients
+      },
+      {
         option: '-f, --force'
       }
     );
@@ -56,7 +63,11 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
 
   #initValidators(): void {
     this.validators.push(
-      async () => {
+      async (args: CommandArgs) => {
+        if (args.options.client && !TeamsCacheRemoveCommand.allowedClients.includes(args.options.client)) {
+          return `'${args.options.client}' is not a valid value for option 'client'. Allowed values are ${TeamsCacheRemoveCommand.allowedClients.join(', ')}`;
+        }
+
         if (process.env.CLIMICROSOFT365_ENV === 'docker') {
           return 'Because you\'re running CLI for Microsoft 365 in a Docker container, we can\'t clear the cache on your host. Instead run this command on your host using "npx ..."';
         }
@@ -73,7 +84,7 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
   public async commandAction(logger: Logger, args: CommandArgs): Promise<void> {
     try {
       if (args.options.force) {
-        await this.clearTeamsCache(logger);
+        await this.clearTeamsCache(args.options.client || 'new', logger);
       }
       else {
         await logger.logToStderr('This command will execute the following steps.');
@@ -83,7 +94,7 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
         const result = await cli.promptForConfirmation({ message: `Are you sure you want to clear your Microsoft Teams cache?` });
 
         if (result) {
-          await this.clearTeamsCache(logger);
+          await this.clearTeamsCache(args.options.client || 'new', logger);
         }
       }
     }
@@ -92,13 +103,19 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
     }
   }
 
-  private async clearTeamsCache(logger: Logger): Promise<void> {
-    const filePath = await this.getTeamsCacheFolderPath(logger);
-    const folderExists = await this.checkIfCacheFolderExists(filePath, logger);
+  private async clearTeamsCache(client: string, logger: Logger): Promise<void> {
+    const filePaths = await this.getTeamsCacheFolderPath(client, logger);
+
+    let folderExists = true;
+    for (const filePath of filePaths) {
+      if (!await this.checkIfCacheFolderExists(filePath, logger)) {
+        folderExists = false;
+      }
+    }
 
     if (folderExists) {
       await this.killRunningProcess(logger);
-      await this.removeCacheFiles(filePath, logger);
+      await this.removeCacheFiles(filePaths, logger);
       await logger.logToStderr('Teams cache cleared!');
     }
     else {
@@ -107,24 +124,35 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
 
   }
 
-  private async getTeamsCacheFolderPath(logger: Logger): Promise<string> {
+  private async getTeamsCacheFolderPath(client: string, logger: Logger): Promise<string[]> {
     const platform = process.platform;
 
     if (this.verbose) {
       await logger.logToStderr(`Getting path of Teams cache folder for platform ${platform}...`);
     }
 
-    let filePath = '';
+    const filePaths: string[] = [];
 
     switch (platform) {
       case 'win32':
-        filePath = `${process.env.APPDATA}\\Microsoft\\Teams`;
+        if (client === 'classic') {
+          filePaths.push(`${process.env.APPDATA}\\Microsoft\\Teams`);
+        }
+        else {
+          filePaths.push(`${process.env.LOCALAPPDATA}\\Packages\\MSTeams_8wekyb3d8bbwe\\LocalCache\\Microsoft\\MSTeams`);
+        }
         break;
       case 'darwin':
-        filePath = `${homedir}/Library/Application Support/Microsoft/Teams`;
+        if (client === 'classic') {
+          filePaths.push(`${homedir}/Library/Application Support/Microsoft/Teams`);
+        }
+        else {
+          filePaths.push(`${homedir}/Library/Group Containers/UBF8T346G9.com.microsoft.teams`);
+          filePaths.push(`${homedir}/Library/Containers/com.microsoft.teams2`);
+        }
         break;
     }
-    return filePath;
+    return filePaths;
   }
 
   private async checkIfCacheFolderExists(filePath: string, logger: Logger): Promise<boolean> {
@@ -148,7 +176,7 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
         cmd = 'wmic process where caption="Teams.exe" get ProcessId';
         break;
       case 'darwin':
-        cmd = `ps ax | grep MacOS/Teams -m 1 | grep -v grep | awk '{ print $1 }'`;
+        cmd = `ps ax | grep 'MacOS/Teams' -m 1 | awk '{print $1}'`;
         break;
     }
 
@@ -157,7 +185,7 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
     }
 
     const cmdOutput = await this.exec(cmd);
-
+    console.log(cmdOutput);
     if (platform === 'darwin') {
       process.kill(parseInt(cmdOutput.stdout));
     }
@@ -172,28 +200,23 @@ class TeamsCacheRemoveCommand extends AnonymousCommand {
     }
   }
 
-  private async removeCacheFiles(filePath: string, logger: Logger): Promise<void> {
+  private async removeCacheFiles(filePaths: string[], logger: Logger): Promise<void> {
     if (this.verbose) {
       await logger.logToStderr('Removing Teams cache files...');
     }
 
     const platform = process.platform;
-    let cmd = '';
+    const baseCmd = platform === 'win32' ? 'rmdir /s /q ' : 'rm -r ';
 
-    switch (platform) {
-      case 'win32':
-        cmd = `rmdir /s /q "${filePath}"`;
-        break;
-      case 'darwin':
-        cmd = `rm -r "${filePath}"`;
-        break;
+    for (const filePath of filePaths) {
+      const cmd = `${baseCmd}"${filePath}"`;
+
+      if (this.debug) {
+        await logger.logToStderr(cmd);
+      }
+
+      await this.exec(cmd);
     }
-
-    if (this.debug) {
-      await logger.logToStderr(cmd);
-    }
-
-    await this.exec(cmd);
   }
 
   private exec = util.promisify(child_process.exec);
