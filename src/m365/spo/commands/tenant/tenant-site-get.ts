@@ -10,16 +10,16 @@ import SpoCommand from '../../../base/SpoCommand.js';
 import commands from '../../commands.js';
 import { cli } from '../../../../cli/cli.js';
 
-const optionsSchema = globalOptionsZod
+export const options = globalOptionsZod
   .extend({
-    id: zod.alias('i', z.string().refine(id => validation.isValidGuid(id), { message: 'Specify a valid GUID' }).optional()),
+    id: zod.alias('i', z.string().uuid().optional()),
     title: zod.alias('t', z.string().optional()),
     url: zod.alias('u', z.string().refine(url => validation.isValidSharePointUrl(url) === true, {
       message: 'Specify a valid SharePoint site URL'
     }).optional())
   })
   .strict();
-declare type Options = z.infer<typeof optionsSchema>;
+declare type Options = z.infer<typeof options>;
 
 interface CommandArgs {
   options: Options;
@@ -35,10 +35,10 @@ class SpoTenantSiteGetCommand extends SpoCommand {
   }
 
   public get schema(): z.ZodTypeAny | undefined {
-    return optionsSchema;
+    return options;
   }
 
-  public getRefinedSchema(schema: typeof optionsSchema): z.ZodEffects<any> | undefined {
+  public getRefinedSchema(schema: typeof options): z.ZodEffects<any> | undefined {
     return schema.refine(o => [o.id, o.title, o.url].filter(v => v !== undefined).length === 1, {
       message: `Specify exactly one of the following options: 'id', 'title', or 'url'.`
     });
@@ -133,5 +133,4 @@ class SpoTenantSiteGetCommand extends SpoCommand {
 }
 
 export default new SpoTenantSiteGetCommand();
-
 

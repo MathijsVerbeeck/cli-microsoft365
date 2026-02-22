@@ -11,7 +11,7 @@ import { pid } from '../../../../utils/pid.js';
 import { session } from '../../../../utils/session.js';
 import { sinonUtil } from '../../../../utils/sinonUtil.js';
 import commands from '../../commands.js';
-import command from './tenant-site-get.js';
+import command, { options } from './tenant-site-get.js';
 import { spo, TenantSiteProperties } from '../../../../utils/spo.js';
 import { settingsNames } from '../../../../settingsNames.js';
 
@@ -24,6 +24,7 @@ describe(commands.TENANT_SITE_GET, () => {
   let logger: Logger;
   let loggerLogSpy: sinon.SinonSpy;
   let commandInfo: CommandInfo;
+  let commandOptionsSchema: typeof options;
 
   const siteResponse: TenantSiteProperties = {
     AllowDownloadingNonWebViewableFiles: false,
@@ -165,6 +166,7 @@ describe(commands.TENANT_SITE_GET, () => {
     sinon.stub(session, 'getId').returns('');
     auth.connection.active = true;
     commandInfo = cli.getCommandInfo(command);
+    commandOptionsSchema = commandInfo.command.getSchemaToParse() as typeof options;
     sinon.stub(cli, 'getSettingWithDefaultValue').callsFake((settingName: string, defaultValue: any) => {
       if (settingName === settingsNames.prompt) {
         return false;
@@ -224,14 +226,14 @@ describe(commands.TENANT_SITE_GET, () => {
 
     sinon.stub(spo, 'getSiteAdminPropertiesByUrl').resolves(siteResponse);
 
-    await command.action(logger, { options: { id: siteId, verbose: true } });
+    await command.action(logger, { options: commandOptionsSchema.parse({ id: siteId, verbose: true }) });
     assert(loggerLogSpy.calledWith(siteResponse));
   });
 
   it('retrieves site by url', async () => {
     sinon.stub(spo, 'getSiteAdminPropertiesByUrl').resolves(siteResponse);
 
-    await command.action(logger, { options: { url: siteUrl, verbose: true } });
+    await command.action(logger, { options: commandOptionsSchema.parse({ url: siteUrl, verbose: true }) });
     assert(loggerLogSpy.calledWith(siteResponse));
   });
 
@@ -245,7 +247,7 @@ describe(commands.TENANT_SITE_GET, () => {
 
     sinon.stub(spo, 'getSiteAdminPropertiesByUrl').resolves(siteResponse);
 
-    await command.action(logger, { options: { title: 'Marketing', verbose: true } });
+    await command.action(logger, { options: commandOptionsSchema.parse({ title: 'Marketing', verbose: true }) });
     assert(loggerLogSpy.calledWith(siteResponse));
   });
 
@@ -266,7 +268,7 @@ describe(commands.TENANT_SITE_GET, () => {
 
     sinon.stub(spo, 'getSiteAdminPropertiesByUrl').resolves(siteResponse);
 
-    await command.action(logger, { options: { title: 'Marketing', verbose: true } });
+    await command.action(logger, { options: commandOptionsSchema.parse({ title: 'Marketing', verbose: true }) });
     assert(loggerLogSpy.calledWith(siteResponse));
   });
 
@@ -278,18 +280,16 @@ describe(commands.TENANT_SITE_GET, () => {
       throw 'Invalid request';
     });
 
-    await assert.rejects(command.action(logger, { options: { title: 'Marketing', verbose: true } } as any), new CommandError("The specified site 'Marketing' does not exist."));
+    await assert.rejects(command.action(logger, { options: commandOptionsSchema.parse({ title: 'Marketing', verbose: true }) }), new CommandError("The specified site 'Marketing' does not exist."));
   });
 
   it('fails validation when specifying none of id, title, url', async () => {
-    const commandOptionsSchema = commandInfo.command.getSchemaToParse()!;
     const refined = commandInfo.command.getRefinedSchema!(commandOptionsSchema as any)!;
     const actual = refined.safeParse({});
     assert.strictEqual(actual.success, false);
   });
 
   it('fails validation when specifying multiple of id, title, url', async () => {
-    const commandOptionsSchema = commandInfo.command.getSchemaToParse()!;
     const refined = commandInfo.command.getRefinedSchema!(commandOptionsSchema as any)!;
     const actual = refined.safeParse({ id: siteId, url: siteUrl });
     assert.strictEqual(actual.success, false);
@@ -314,7 +314,7 @@ describe(commands.TENANT_SITE_GET, () => {
       throw 'Invalid request';
     });
 
-    await assert.rejects(command.action(logger, { options: { id: siteId, verbose: true } } as any), new CommandError('Attempted to perform an unauthorized operation.'));
+    await assert.rejects(command.action(logger, { options: commandOptionsSchema.parse({ id: siteId, verbose: true }) }), new CommandError('Attempted to perform an unauthorized operation.'));
   });
 });
 
