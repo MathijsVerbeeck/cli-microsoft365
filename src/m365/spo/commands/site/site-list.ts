@@ -13,20 +13,24 @@ import { SPOSitePropertiesEnumerable } from './SPOSitePropertiesEnumerable.js';
 
 enum SiteListType {
   TeamSite = 'TeamSite',
-  CommunicationSite = 'CommunicationSite',
+  CommunicationSite = 'CommunicationSite'
+}
+
+enum SiteListState {
+  active = 'active',
   fullyArchived = 'fullyArchived',
   recentlyArchived = 'recentlyArchived',
   archived = 'archived'
 }
 
-const options = globalOptionsZod
-  .extend({
-    type: zod.alias('t', zod.coercedEnum(SiteListType)).optional(),
-    webTemplate: z.string().optional(),
-    filter: z.string().optional(),
-    withOneDriveSites: z.boolean().optional()
-  })
-  .strict();
+const options = z.strictObject({
+  ...globalOptionsZod.shape,
+  type: zod.coercedEnum(SiteListType).optional().alias('t'),
+  state: zod.coercedEnum(SiteListState).optional(),
+  webTemplate: z.string().optional(),
+  filter: z.string().optional(),
+  withOneDriveSites: z.boolean().optional()
+});
 declare type Options = z.infer<typeof options>;
 
 interface CommandArgs {
@@ -48,17 +52,20 @@ class SpoSiteListCommand extends SpoCommand {
     return ['Title', 'Url'];
   }
 
-  public get schema(): z.ZodTypeAny | undefined {
+  public get schema(): z.ZodType | undefined {
     return options;
   }
 
-  public getRefinedSchema(schema: typeof options): z.ZodEffects<any> | undefined {
+  public getRefinedSchema(schema: typeof options): z.ZodType | undefined {
     return schema
       .refine(o => !(o.type && o.webTemplate), {
         message: 'Specify either type or webTemplate, but not both'
       })
       .refine(o => !(o.withOneDriveSites && (o.type !== undefined || o.webTemplate !== undefined)), {
         message: 'When using withOneDriveSites, don\'t specify the type or webTemplate options'
+      })
+      .refine(o => !(o.withOneDriveSites && o.state !== undefined), {
+        message: 'When using withOneDriveSites, don\'t specify the state option'
       });
   }
 
@@ -101,7 +108,7 @@ class SpoSiteListCommand extends SpoCommand {
       data: requestBody
     };
 
-    const response: string = await request.post(requestOptions);
+    const response: string = await request.post<string>(requestOptions);
     const json: ClientSvcResponse = JSON.parse(response);
     const responseContent: ClientSvcResponseContents = json[0];
 
@@ -142,25 +149,29 @@ class SpoSiteListCommand extends SpoCommand {
   private buildFilter(options: Options): string {
     const providedFilter: string = options.filter || '';
 
-    let archivedFilter: string = '';
-    switch (options.type) {
+    let stateFilter: string = '';
+    switch (options.state) {
+      case 'active':
+        stateFilter = `ArchiveStatus -eq 'NotArchived'`;
+        break;
       case 'fullyArchived':
-        archivedFilter = "ArchiveStatus -eq 'FullyArchived'";
+        stateFilter = `ArchiveStatus -eq 'FullyArchived'`;
         break;
       case 'recentlyArchived':
-        archivedFilter = "ArchiveStatus -eq 'RecentlyArchived'";
+        stateFilter = `ArchiveStatus -eq 'RecentlyArchived'`;
         break;
       case 'archived':
-        archivedFilter = "ArchiveStatus -ne 'NotArchived'";
+        stateFilter = `ArchiveStatus -ne 'NotArchived'`;
         break;
     }
 
-    if (archivedFilter && providedFilter) {
-      return `${providedFilter} and ${archivedFilter}`;
+    if (stateFilter && providedFilter) {
+      return `${providedFilter} and ${stateFilter}`;
     }
 
-    return archivedFilter || providedFilter;
+    return stateFilter || providedFilter;
   }
 }
 
 export default new SpoSiteListCommand();
+export { options };
