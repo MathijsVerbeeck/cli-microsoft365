@@ -5,20 +5,18 @@ import request, { CliRequestOptions } from '../../../../request.js';
 import { formatting } from '../../../../utils/formatting.js';
 import { spo } from '../../../../utils/spo.js';
 import { validation } from '../../../../utils/validation.js';
-import { zod } from '../../../../utils/zod.js';
 import SpoCommand from '../../../base/SpoCommand.js';
 import commands from '../../commands.js';
 import { cli } from '../../../../cli/cli.js';
 
-export const options = globalOptionsZod
-  .extend({
-    id: zod.alias('i', z.string().uuid().optional()),
-    title: zod.alias('t', z.string().optional()),
-    url: zod.alias('u', z.string().refine(url => validation.isValidSharePointUrl(url) === true, {
-      message: 'Specify a valid SharePoint site URL'
-    }).optional())
-  })
-  .strict();
+export const options = z.strictObject({
+  ...globalOptionsZod.shape,
+  id: z.uuid().optional().alias('i'),
+  title: z.string().optional().alias('t'),
+  url: z.string().refine(url => validation.isValidSharePointUrl(url) === true, {
+    message: 'Specify a valid SharePoint site URL'
+  }).optional().alias('u')
+});
 declare type Options = z.infer<typeof options>;
 
 interface CommandArgs {
@@ -34,13 +32,13 @@ class SpoTenantSiteGetCommand extends SpoCommand {
     return 'Retrieves the tenant site information';
   }
 
-  public get schema(): z.ZodTypeAny | undefined {
+  public get schema(): z.ZodType {
     return options;
   }
 
-  public getRefinedSchema(schema: typeof options): z.ZodEffects<any> | undefined {
+  public getRefinedSchema(schema: typeof options): z.ZodObject<any> | undefined {
     return schema.refine(o => [o.id, o.title, o.url].filter(v => v !== undefined).length === 1, {
-      message: `Specify exactly one of the following options: 'id', 'title', or 'url'.`
+      error: `Specify exactly one of the following options: 'id', 'title', or 'url'.`
     });
   }
 
@@ -133,4 +131,3 @@ class SpoTenantSiteGetCommand extends SpoCommand {
 }
 
 export default new SpoTenantSiteGetCommand();
-
