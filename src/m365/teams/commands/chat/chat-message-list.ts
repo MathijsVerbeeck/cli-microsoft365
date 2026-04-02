@@ -79,9 +79,7 @@ class TeamsChatMessageListCommand extends GraphCommand {
     if (args.options.endDateTime) {
       await this.warn(logger, `Option 'endDateTime' is deprecated. Please use 'createdEndDateTime' instead.`);
 
-      if (!args.options.createdEndDateTime) {
-        args.options.createdEndDateTime = args.options.endDateTime;
-      }
+      args.options.createdEndDateTime = args.options.endDateTime;
     }
 
     try {
