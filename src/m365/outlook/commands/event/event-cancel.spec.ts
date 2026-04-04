@@ -12,7 +12,6 @@ import { sinonUtil } from '../../../../utils/sinonUtil.js';
 import { cli } from '../../../../cli/cli.js';
 import { accessToken } from '../../../../utils/accessToken.js';
 import command, { options } from './event-cancel.js';
-import { formatting } from '../../../../utils/formatting.js';
 import { CommandInfo } from '../../../../cli/CommandInfo.js';
 
 describe(commands.EVENT_CANCEL, () => {
@@ -156,7 +155,7 @@ describe(commands.EVENT_CANCEL, () => {
   it('cancels a specific event using delegated permissions from a calendar specified by userId matching the current user without prompting for confirmation', async () => {
     sinon.stub(accessToken, 'getUserIdFromAccessToken').returns(userId);
     const postRequestStub = sinon.stub(request, 'post').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${userId}/events/${eventId}/cancel`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userId}')/events/${eventId}/cancel`) {
         return;
       }
 
@@ -170,7 +169,7 @@ describe(commands.EVENT_CANCEL, () => {
   it('cancels a specific event using delegated permissions from a calendar specified by userName matching the current user without prompting for confirmation', async () => {
     sinon.stub(accessToken, 'getUserNameFromAccessToken').returns(userPrincipalName);
     const postRequestStub = sinon.stub(request, 'post').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${formatting.encodeQueryParameter(userPrincipalName)}/events/${eventId}/cancel`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userPrincipalName}')/events/${eventId}/cancel`) {
         return;
       }
 
@@ -199,7 +198,7 @@ describe(commands.EVENT_CANCEL, () => {
     sinonUtil.restore([accessToken.isAppOnlyAccessToken]);
     sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(true);
     const postRequestStub = sinon.stub(request, 'post').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${userId}/events/${eventId}/cancel`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userId}')/events/${eventId}/cancel`) {
         return;
       }
 
@@ -214,7 +213,7 @@ describe(commands.EVENT_CANCEL, () => {
     sinonUtil.restore([accessToken.isAppOnlyAccessToken]);
     sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(true);
     const postRequestStub = sinon.stub(request, 'post').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${formatting.encodeQueryParameter(userPrincipalName)}/events/${eventId}/cancel`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userPrincipalName}')/events/${eventId}/cancel`) {
         return;
       }
 
@@ -233,23 +232,15 @@ describe(commands.EVENT_CANCEL, () => {
       new CommandError(`The option 'userId' or 'userName' is required when cancelling an event using application permissions.`));
   });
 
-  it('throws an error when both userId and userName are defined when cancelling an event using application permissions', async () => {
-    sinonUtil.restore([accessToken.isAppOnlyAccessToken]);
-    sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(true);
-
-    await assert.rejects(command.action(logger, { options: { id: eventId, userId: userId, userName: userPrincipalName } }),
-      new CommandError(`Both options 'userId' and 'userName' cannot be used together when cancelling an event using application permissions.`));
-  });
-
-  it('throws an error when both userId and userName are defined when cancelling an event using delegated permissions', async () => {
-    await assert.rejects(command.action(logger, { options: { id: eventId, userId: userId, userName: userPrincipalName } }),
-      new CommandError(`Both options 'userId' and 'userName' cannot be used together when cancelling an event using delegated permissions.`));
+  it('fails validation when both userId and userName are specified', () => {
+    const actual = commandOptionsSchema.safeParse({ id: eventId, userId: userId, userName: userPrincipalName });
+    assert.strictEqual(actual.success, false);
   });
 
   it('succeeds when userName matches current user case-insensitively using delegated permissions', async () => {
     sinon.stub(accessToken, 'getUserNameFromAccessToken').returns('John.Doe@Contoso.com');
     const postRequestStub = sinon.stub(request, 'post').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${formatting.encodeQueryParameter(userPrincipalName)}/events/${eventId}/cancel`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userPrincipalName}')/events/${eventId}/cancel`) {
         return;
       }
 
