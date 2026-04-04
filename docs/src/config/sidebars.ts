@@ -2400,6 +2400,11 @@ const sidebars: SidebarsConfig = {
           brandcenter: [
             {
               type: 'doc',
+              label: 'brandcenter colors list',
+              id: 'cmd/spo/brandcenter/brandcenter-colors-list'
+            },
+            {
+              type: 'doc',
               label: 'brandcenter settings list',
               id: 'cmd/spo/brandcenter/brandcenter-settings-list'
             }
