@@ -12,7 +12,6 @@ import { sinonUtil } from '../../../../utils/sinonUtil.js';
 import { cli } from '../../../../cli/cli.js';
 import { accessToken } from '../../../../utils/accessToken.js';
 import command, { options } from './event-remove.js';
-import { formatting } from '../../../../utils/formatting.js';
 import { CommandInfo } from '../../../../cli/CommandInfo.js';
 
 describe(commands.EVENT_REMOVE, () => {
@@ -111,6 +110,11 @@ describe(commands.EVENT_REMOVE, () => {
     assert.notStrictEqual(actual.success, true);
   });
 
+  it('fails validation if both userId and userName are specified', () => {
+    const actual = commandOptionsSchema.safeParse({ id: eventId, userId: userId, userName: userPrincipalName });
+    assert.notStrictEqual(actual.success, true);
+  });
+
   it('removes a specific event using delegated permissions without prompting for confirmation', async () => {
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/me/events/${eventId}`) {
@@ -156,7 +160,7 @@ describe(commands.EVENT_REMOVE, () => {
   it('removes a specific event using delegated permissions from a calendar specified by userId matching the current user without prompting for confirmation', async () => {
     sinon.stub(accessToken, 'getUserIdFromAccessToken').returns(userId);
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${userId}/events/${eventId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userId}')/events/${eventId}`) {
         return;
       }
 
@@ -170,7 +174,7 @@ describe(commands.EVENT_REMOVE, () => {
   it('removes a specific event using delegated permissions from a calendar specified by userName matching the current user without prompting for confirmation', async () => {
     sinon.stub(accessToken, 'getUserNameFromAccessToken').returns(userPrincipalName);
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${formatting.encodeQueryParameter(userPrincipalName)}/events/${eventId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userPrincipalName}')/events/${eventId}`) {
         return;
       }
 
@@ -198,7 +202,7 @@ describe(commands.EVENT_REMOVE, () => {
   it('succeeds when userName matches current user case-insensitively using delegated permissions', async () => {
     sinon.stub(accessToken, 'getUserNameFromAccessToken').returns('John.Doe@Contoso.com');
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${formatting.encodeQueryParameter(userPrincipalName)}/events/${eventId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userPrincipalName}')/events/${eventId}`) {
         return;
       }
 
@@ -213,7 +217,7 @@ describe(commands.EVENT_REMOVE, () => {
     sinonUtil.restore([accessToken.isAppOnlyAccessToken]);
     sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(true);
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${userId}/events/${eventId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userId}')/events/${eventId}`) {
         return;
       }
 
@@ -228,7 +232,7 @@ describe(commands.EVENT_REMOVE, () => {
     sinonUtil.restore([accessToken.isAppOnlyAccessToken]);
     sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(true);
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${formatting.encodeQueryParameter(userPrincipalName)}/events/${eventId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userPrincipalName}')/events/${eventId}`) {
         return;
       }
 
@@ -243,7 +247,7 @@ describe(commands.EVENT_REMOVE, () => {
     sinonUtil.restore([accessToken.isAppOnlyAccessToken]);
     sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(true);
     const postRequestStub = sinon.stub(request, 'post').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users/${userId}/events/${eventId}/permanentDelete`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userId}')/events/${eventId}/permanentDelete`) {
         return;
       }
 
@@ -260,19 +264,6 @@ describe(commands.EVENT_REMOVE, () => {
 
     await assert.rejects(command.action(logger, { options: { id: eventId } }),
       new CommandError(`The option 'userId' or 'userName' is required when removing an event using application permissions.`));
-  });
-
-  it('throws an error when both userId and userName are defined when removing an event using application permissions', async () => {
-    sinonUtil.restore([accessToken.isAppOnlyAccessToken]);
-    sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(true);
-
-    await assert.rejects(command.action(logger, { options: { id: eventId, userId: userId, userName: userPrincipalName } }),
-      new CommandError(`Both options 'userId' and 'userName' cannot be used together when removing an event using application permissions.`));
-  });
-
-  it('throws an error when both userId and userName are defined when removing an event using delegated permissions', async () => {
-    await assert.rejects(command.action(logger, { options: { id: eventId, userId: userId, userName: userPrincipalName } }),
-      new CommandError(`Both options 'userId' and 'userName' cannot be used together when removing an event using delegated permissions.`));
   });
 
   it('correctly handles API errors', async () => {
