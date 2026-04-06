@@ -1,7 +1,12 @@
 const prefix: string = 'outlook';
 
 export default {
+  CALENDAR_ADD: `${prefix} calendar add`,
+  CALENDAR_GET: `${prefix} calendar get`,
+  CALENDAR_REMOVE: `${prefix} calendar remove`,
   CALENDARGROUP_LIST: `${prefix} calendargroup list`,
+  EVENT_CANCEL: `${prefix} event cancel`,
+  EVENT_LIST: `${prefix} event list`,
   EVENT_REMOVE: `${prefix} event remove`,
   MAIL_SEARCHFOLDER_ADD: `${prefix} mail searchfolder add`,
   MAIL_SEND: `${prefix} mail send`,

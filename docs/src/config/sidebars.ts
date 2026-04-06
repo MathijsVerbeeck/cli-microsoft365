@@ -1303,6 +1303,25 @@ const sidebars: SidebarsConfig = {
     {
       'Outlook (outlook)': [
         {
+          calendar: [
+            {
+              type: 'doc',
+              label: 'calendar add',
+              id: 'cmd/outlook/calendar/calendar-add'
+            },
+            {
+              type: 'doc',
+              label: 'calendar get',
+              id: 'cmd/outlook/calendar/calendar-get'
+            },
+            {
+              type: 'doc',
+              label: 'calendar remove',
+              id: 'cmd/outlook/calendar/calendar-remove'
+            }
+          ]
+        },
+        {
           calendargroup: [
             {
               type: 'doc',
@@ -1313,6 +1332,16 @@ const sidebars: SidebarsConfig = {
         },
         {
           event: [
+            {
+              type: 'doc',
+              label: 'event cancel',
+              id: 'cmd/outlook/event/event-cancel'
+            },
+            {
+              type: 'doc',
+              label: 'event list',
+              id: 'cmd/outlook/event/event-list'
+            },
             {
               type: 'doc',
               label: 'event remove',
