@@ -8,6 +8,7 @@ import { cli } from '../../../../cli/cli.js';
 import request from '../../../../request.js';
 import { telemetry } from '../../../../telemetry.js';
 import { accessToken } from '../../../../utils/accessToken.js';
+import { calendarGroup } from '../../../../utils/calendarGroup.js';
 import { pid } from '../../../../utils/pid.js';
 import { session } from '../../../../utils/session.js';
 import { sinonUtil } from '../../../../utils/sinonUtil.js';
@@ -19,17 +20,6 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
   const calendarGroupName = 'Personal Events';
   const userId = 'b743445a-112c-4fda-9afd-05943f9c7b36';
   const userName = 'john.doe@contoso.com';
-
-  const calendarGroupsResponse = {
-    value: [
-      {
-        id: calendarGroupId,
-        name: calendarGroupName,
-        changeKey: 'nfZyf7VcrEKLNoU37KWlkQAAA0x0+w==',
-        classId: '0006f0b7-0000-0000-c000-000000000046'
-      }
-    ]
-  };
 
   let log: string[];
   let logger: Logger;
@@ -77,6 +67,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
   afterEach(() => {
     sinonUtil.restore([
       accessToken.isAppOnlyAccessToken,
+      calendarGroup.getUserCalendarGroupByName,
       request.get,
       request.delete,
       cli.promptForConfirmation
@@ -186,13 +177,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
   });
 
   it('removes the calendar group specified by name for the signed-in user', async () => {
-    sinon.stub(request, 'get').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups?$filter=name eq '${calendarGroupName}'`) {
-        return calendarGroupsResponse;
-      }
-
-      throw 'Invalid request';
-    });
+    sinon.stub(calendarGroup, 'getUserCalendarGroupByName').resolves({ id: calendarGroupId, name: calendarGroupName });
 
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups/${calendarGroupId}`) {
@@ -210,13 +195,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
   });
 
   it('removes the calendar group specified by name for the signed-in user (verbose)', async () => {
-    sinon.stub(request, 'get').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups?$filter=name eq '${calendarGroupName}'`) {
-        return calendarGroupsResponse;
-      }
-
-      throw 'Invalid request';
-    });
+    sinon.stub(calendarGroup, 'getUserCalendarGroupByName').resolves({ id: calendarGroupId, name: calendarGroupName });
 
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups/${calendarGroupId}`) {
@@ -245,7 +224,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
 
   it('removes the calendar group specified by id for a user specified by userName', async () => {
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userName}')/calendarGroups/${calendarGroupId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('john.doe%40contoso.com')/calendarGroups/${calendarGroupId}`) {
         return;
       }
 
@@ -257,13 +236,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
   });
 
   it('removes the calendar group specified by name for a user specified by userId', async () => {
-    sinon.stub(request, 'get').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userId}')/calendarGroups?$filter=name eq '${calendarGroupName}'`) {
-        return calendarGroupsResponse;
-      }
-
-      throw 'Invalid request';
-    });
+    sinon.stub(calendarGroup, 'getUserCalendarGroupByName').resolves({ id: calendarGroupId, name: calendarGroupName });
 
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
       if (opts.url === `https://graph.microsoft.com/v1.0/users('${userId}')/calendarGroups/${calendarGroupId}`) {
@@ -278,16 +251,10 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
   });
 
   it('removes the calendar group specified by name for a user specified by userName', async () => {
-    sinon.stub(request, 'get').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userName}')/calendarGroups?$filter=name eq '${calendarGroupName}'`) {
-        return calendarGroupsResponse;
-      }
-
-      throw 'Invalid request';
-    });
+    sinon.stub(calendarGroup, 'getUserCalendarGroupByName').resolves({ id: calendarGroupId, name: calendarGroupName });
 
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/users('${userName}')/calendarGroups/${calendarGroupId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('john.doe%40contoso.com')/calendarGroups/${calendarGroupId}`) {
         return;
       }
 
@@ -325,17 +292,11 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
   });
 
   it('throws error when calendar group specified by name is not found', async () => {
-    sinon.stub(request, 'get').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups?$filter=name eq '${calendarGroupName}'`) {
-        return { value: [] };
-      }
-
-      throw 'Invalid request';
-    });
+    sinon.stub(calendarGroup, 'getUserCalendarGroupByName').rejects(new Error(`The specified calendar group '${calendarGroupName}' does not exist.`));
 
     await assert.rejects(
       command.action(logger, { options: commandOptionsSchema.parse({ name: calendarGroupName, force: true }) }),
-      new CommandError(`Calendar group with name '${calendarGroupName}' not found.`)
+      new CommandError(`The specified calendar group '${calendarGroupName}' does not exist.`)
     );
   });
 

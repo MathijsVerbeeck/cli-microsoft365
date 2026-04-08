@@ -1,4 +1,3 @@
-import { CalendarGroup } from '@microsoft/microsoft-graph-types';
 import { z } from 'zod';
 import { globalOptionsZod } from '../../../../Command.js';
 import GraphCommand from '../../../base/GraphCommand.js';
@@ -6,10 +5,11 @@ import { Logger } from '../../../../cli/Logger.js';
 import { cli } from '../../../../cli/cli.js';
 import commands from '../../commands.js';
 import { validation } from '../../../../utils/validation.js';
-import { odata } from '../../../../utils/odata.js';
 import { accessToken } from '../../../../utils/accessToken.js';
 import auth from '../../../../Auth.js';
 import request, { CliRequestOptions } from '../../../../request.js';
+import { formatting } from '../../../../utils/formatting.js';
+import { calendarGroup } from '../../../../utils/calendarGroup.js';
 
 export const options = z.strictObject({
   ...globalOptionsZod.shape,
@@ -67,12 +67,14 @@ class OutlookCalendarGroupRemoveCommand extends GraphCommand {
         }
 
         let endpoint: string;
+        let graphUserId: string;
 
         if (args.options.userId || args.options.userName) {
-          const userIdentifier = args.options.userId ?? args.options.userName;
-          endpoint = `${this.resource}/v1.0/users('${userIdentifier}')`;
+          graphUserId = (args.options.userId ?? args.options.userName)!;
+          endpoint = `${this.resource}/v1.0/users('${formatting.encodeQueryParameter(graphUserId)}')`;
         }
         else {
+          graphUserId = 'me';
           endpoint = `${this.resource}/v1.0/me`;
         }
 
@@ -83,13 +85,8 @@ class OutlookCalendarGroupRemoveCommand extends GraphCommand {
             await logger.logToStderr(`Retrieving calendar group by name '${args.options.name}'...`);
           }
 
-          const calendarGroups = await odata.getAllItems<CalendarGroup>(`${endpoint}/calendarGroups?$filter=name eq '${args.options.name}'`);
-
-          if (calendarGroups.length === 0) {
-            throw `Calendar group with name '${args.options.name}' not found.`;
-          }
-
-          calendarGroupId = calendarGroups[0].id!;
+          const calendarGroupResult = await calendarGroup.getUserCalendarGroupByName(graphUserId, args.options.name);
+          calendarGroupId = calendarGroupResult.id!;
         }
 
         if (this.verbose) {
