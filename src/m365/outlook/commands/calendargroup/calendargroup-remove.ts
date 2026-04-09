@@ -71,12 +71,12 @@ class OutlookCalendarGroupRemoveCommand extends GraphCommand {
 
         if (args.options.userId || args.options.userName) {
           graphUserId = (args.options.userId ?? args.options.userName)!;
-          endpoint = `${this.resource}/v1.0/users('${formatting.encodeQueryParameter(graphUserId)}')`;
         }
         else {
-          graphUserId = 'me';
-          endpoint = `${this.resource}/v1.0/me`;
+          graphUserId = accessToken.getUserIdFromAccessToken(token);
         }
+
+        endpoint = `${this.resource}/v1.0/users('${formatting.encodeQueryParameter(graphUserId)}')`;
 
         let calendarGroupId = args.options.id;
 

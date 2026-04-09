@@ -18,6 +18,7 @@ import command, { options } from './calendargroup-remove.js';
 describe(commands.CALENDARGROUP_REMOVE, () => {
   const calendarGroupId = 'AAMkAGE0MGM1Y2M5LWEzMmUtNGVlNy05MjRlLTk0YmYyY2I5NTM3ZAAuAAAAAAC_0WfqSjt_SqLtNkuO-bj1AQAbfYq5lmBxQ6a4t1fGbeYAAAAAAEOAAA=';
   const calendarGroupName = 'Personal Events';
+  const currentUserId = '2b4097f3-5b17-4153-a8b4-cd680e333555';
   const userId = 'b743445a-112c-4fda-9afd-05943f9c7b36';
   const userName = 'john.doe@contoso.com';
 
@@ -61,12 +62,14 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
       return Promise.resolve(false);
     });
     sinon.stub(accessToken, 'isAppOnlyAccessToken').returns(false);
+    sinon.stub(accessToken, 'getUserIdFromAccessToken').returns(currentUserId);
     promptIssued = false;
   });
 
   afterEach(() => {
     sinonUtil.restore([
       accessToken.isAppOnlyAccessToken,
+      accessToken.getUserIdFromAccessToken,
       calendarGroup.getUserCalendarGroupByName,
       request.get,
       request.delete,
@@ -152,7 +155,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
 
   it('removes the calendar group specified by id for the signed-in user without prompting', async () => {
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups/${calendarGroupId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${currentUserId}')/calendarGroups/${calendarGroupId}`) {
         return;
       }
 
@@ -165,7 +168,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
 
   it('removes the calendar group specified by id for the signed-in user (verbose)', async () => {
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups/${calendarGroupId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${currentUserId}')/calendarGroups/${calendarGroupId}`) {
         return;
       }
 
@@ -180,7 +183,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
     sinon.stub(calendarGroup, 'getUserCalendarGroupByName').resolves({ id: calendarGroupId, name: calendarGroupName });
 
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups/${calendarGroupId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${currentUserId}')/calendarGroups/${calendarGroupId}`) {
         return;
       }
 
@@ -198,7 +201,7 @@ describe(commands.CALENDARGROUP_REMOVE, () => {
     sinon.stub(calendarGroup, 'getUserCalendarGroupByName').resolves({ id: calendarGroupId, name: calendarGroupName });
 
     const deleteRequestStub = sinon.stub(request, 'delete').callsFake(async (opts) => {
-      if (opts.url === `https://graph.microsoft.com/v1.0/me/calendarGroups/${calendarGroupId}`) {
+      if (opts.url === `https://graph.microsoft.com/v1.0/users('${currentUserId}')/calendarGroups/${calendarGroupId}`) {
         return;
       }
 
