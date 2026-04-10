@@ -23,8 +23,7 @@ describe(commands.PROPERTYBAG_SET, () => {
   const stubAllPostRequests = (
     requestObjectIdentityResp: any = null,
     folderObjectIdentityResp: any = null,
-    setPropertyResp: any = null,
-    effectiveBasePermissionsResp: any = null
+    setPropertyResp: any = null
   ): sinon.SinonStub => {
     return sinon.stub(request, 'post').callsFake(async (opts) => {
       // fake requestObjectIdentity
@@ -86,28 +85,23 @@ describe(commands.PROPERTYBAG_SET, () => {
       }
 
       if (opts.data.indexOf('EffectiveBasePermissions') > -1) {
-        if (effectiveBasePermissionsResp) {
-          return effectiveBasePermissionsResp;
-        }
-        else {
-          // effective base permissions (success case)
-          return JSON.stringify([
-            {
-              "SchemaVersion": "15.0.0.0",
-              "LibraryVersion": "16.0.7514.1204",
-              "ErrorInfo": null,
-              "TraceCorrelationId": "2d64579e-00e9-5000-71ce-fdad238b27fc"
-            }, 7, {
-              "_ObjectType_": "SP.Web",
-              "_ObjectIdentity_": "2d64579e-00e9-5000-71ce-fdad238b27fc|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:692102df-335d-41e2-aa44-425b626037ea:web:f7fb12c3-ca68-4060-b1b0-c27a6bfffeb2",
-              "EffectiveBasePermissions": {
-                "_ObjectType_": "SP.BasePermissions",
-                "High": 2147483647,
-                "Low": 4294967295
-              }
+        // effective base permissions (success case)
+        return JSON.stringify([
+          {
+            "SchemaVersion": "15.0.0.0",
+            "LibraryVersion": "16.0.7514.1204",
+            "ErrorInfo": null,
+            "TraceCorrelationId": "2d64579e-00e9-5000-71ce-fdad238b27fc"
+          }, 7, {
+            "_ObjectType_": "SP.Web",
+            "_ObjectIdentity_": "2d64579e-00e9-5000-71ce-fdad238b27fc|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:692102df-335d-41e2-aa44-425b626037ea:web:f7fb12c3-ca68-4060-b1b0-c27a6bfffeb2",
+            "EffectiveBasePermissions": {
+              "_ObjectType_": "SP.BasePermissions",
+              "High": 2147483647,
+              "Low": 4294967295
             }
-          ]);
-        }
+          }
+        ]);
       }
 
       throw 'Invalid request';
@@ -353,89 +347,30 @@ describe(commands.PROPERTYBAG_SET, () => {
       new CommandError('Cannot proceed. Folder _ObjectIdentity_ not found'));
   });
 
-  it('should correctly handle isNoScriptSite = true', async () => {
-    stubAllPostRequests(null, null, null, JSON.stringify([
-      {
-        "SchemaVersion": "15.0.0.0",
-        "LibraryVersion": "16.0.7514.1204",
-        "ErrorInfo": null,
-        "TraceCorrelationId": "e811579e-009e-5000-ccf1-d233618f3d4f"
-      }, 11, {
-        "_ObjectType_": "SP.Web",
-        "_ObjectIdentity_": "e811579e-009e-5000-ccf1-d233618f3d4f|740c6a0b-85e2-48a0-a494-e0f1759d4aa7:site:692102df-335d-41e2-aa44-425b626037ea:web:f7fb12c3-ca68-4060-b1b0-c27a6bfffeb2", "EffectiveBasePermissions": {
-          "_ObjectType_": "SP.BasePermissions",
-          "High": 2147483647,
-          "Low": 4294705151
-        }
-      }
-    ]));
+  it('should show a tip when Access Denied error with E_ACCESSDENIED is thrown', async () => {
+    stubAllPostRequests(null, null, new Promise<any>((resolve, reject) => { return reject('Access is denied. (Exception from HRESULT: 0x80070005 (E_ACCESSDENIED))'); }));
     const options = {
       webUrl: 'https://contoso.sharepoint.com',
       key: 'key1',
-      value: 'value1',
-      folder: '/',
-      debug: true
-    };
-
-    await assert.rejects(command.action(logger, { options: options } as any),
-      new CommandError('Site has NoScript enabled, and setting property bag values is not supported'));
-  });
-
-  it('should correctly handle getEffectiveBasePermissions reject promise', async () => {
-    stubAllPostRequests(null, null, null, new Promise<any>((resolve, reject) => { return reject('getEffectiveBasePermissions abc'); }));
-    const options = {
-      webUrl: 'https://contoso.sharepoint.com',
-      key: 'key1',
-      value: 'value1',
-      folder: '/',
-      debug: true
-    };
-
-    await assert.rejects(command.action(logger, { options: options } as any),
-      new CommandError('getEffectiveBasePermissions abc'));
-  });
-
-  it('should correctly handle getEffectiveBasePermissions ClientSvc error response', async () => {
-    const error = JSON.stringify([{ "ErrorInfo": { "ErrorMessage": "getEffectiveBasePermissions error" } }]);
-    stubAllPostRequests(null, null, null, new Promise<any>((resolve) => { return resolve(error); }));
-    const options = {
-      webUrl: 'https://contoso.sharepoint.com',
-      key: 'key1',
-      value: 'value1',
-      folder: '/',
-      verbose: true
-    };
-
-    await assert.rejects(command.action(logger, { options: options } as any),
-      new CommandError('getEffectiveBasePermissions error'));
-  });
-
-  it('should correctly handle getEffectiveBasePermissions ClientSvc empty error response', async () => {
-    const error = JSON.stringify([{ "ErrorInfo": { "ErrorMessage": "" } }]);
-    stubAllPostRequests(null, null, null, new Promise<any>((resolve) => { return resolve(error); }));
-    const options = {
-      webUrl: 'https://contoso.sharepoint.com',
-      key: 'key1',
-      value: 'value1',
-      folder: '/',
-      debug: true
-    };
-
-    await assert.rejects(command.action(logger, { options: options } as any),
-      new CommandError('ClientSvc unknown error'));
-  });
-
-  it('should getEffectiveBasePermissions reject promise if EffectiveBasePermissions not found', async () => {
-    stubAllPostRequests(null, null, null, '[{}]');
-    const options = {
-      webUrl: 'https://contoso.sharepoint.com',
-      folder: '/',
-      key: 'vti_parentid',
       value: 'value1'
     };
 
     await assert.rejects(command.action(logger, { options: options } as any),
-      new CommandError('Cannot proceed. EffectiveBasePermissions not found'));
+      new CommandError('Access is denied. (Exception from HRESULT: 0x80070005 (E_ACCESSDENIED))'));
+    assert(log.some(l => l === 'Tip: If a site has NoScript enabled, setting the property bag value may result in exceptions.'));
+  });
+
+  it('should not show a tip when a non-Access Denied error is thrown', async () => {
+    stubAllPostRequests(null, null, new Promise<any>((resolve, reject) => { return reject('Some other error'); }));
+    const options = {
+      webUrl: 'https://contoso.sharepoint.com',
+      key: 'key1',
+      value: 'value1'
+    };
+
+    await assert.rejects(command.action(logger, { options: options } as any),
+      new CommandError('Some other error'));
+    assert(!log.some(l => l === 'Tip: If a site has NoScript enabled, setting the property bag value may result in exceptions.'));
   });
 
   it('should correctly handle setProperty reject promise response', async () => {
