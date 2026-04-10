@@ -14,6 +14,7 @@ import { sinonUtil } from '../../../../utils/sinonUtil.js';
 import { IdentityResponse, spo } from '../../../../utils/spo.js';
 import commands from '../../commands.js';
 import command from './propertybag-set.js';
+import { SpoPropertyBagBaseCommand } from './propertybag-base.js';
 import { settingsNames } from '../../../../settingsNames.js';
 
 describe(commands.PROPERTYBAG_SET, () => {
@@ -142,7 +143,8 @@ describe(commands.PROPERTYBAG_SET, () => {
     sinonUtil.restore([
       request.post,
       (command as any).setProperty,
-      cli.getSettingWithDefaultValue
+      cli.getSettingWithDefaultValue,
+      spo.getEffectiveBasePermissions
     ]);
   });
 
@@ -515,6 +517,38 @@ describe(commands.PROPERTYBAG_SET, () => {
         }
       }, commandInfo);
     assert.strictEqual(actual, true);
+  });
+
+  it('should correctly detect a NoScript site', async () => {
+    sinon.stub(spo, 'getEffectiveBasePermissions').resolves({
+      high: 2147483647,
+      low: 4294705151,
+      has: () => false
+    } as any);
+
+    const identityResp: IdentityResponse = {
+      objectIdentity: 'identity',
+      serverRelativeUrl: '/'
+    };
+
+    const result = await SpoPropertyBagBaseCommand.isNoScriptSite('https://contoso.sharepoint.com', 'formDigest', identityResp, logger, false);
+    assert.strictEqual(result, true);
+  });
+
+  it('should correctly detect a non-NoScript site', async () => {
+    sinon.stub(spo, 'getEffectiveBasePermissions').resolves({
+      high: 2147483647,
+      low: 4294967295,
+      has: () => true
+    } as any);
+
+    const identityResp: IdentityResponse = {
+      objectIdentity: 'identity',
+      serverRelativeUrl: '/'
+    };
+
+    const result = await SpoPropertyBagBaseCommand.isNoScriptSite('https://contoso.sharepoint.com', 'formDigest', identityResp, logger, false);
+    assert.strictEqual(result, false);
   });
 });
 
