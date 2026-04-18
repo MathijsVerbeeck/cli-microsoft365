@@ -1332,6 +1332,11 @@ const sidebars: SidebarsConfig = {
               type: 'doc',
               label: 'calendargroup list',
               id: 'cmd/outlook/calendargroup/calendargroup-list'
+            },
+            {
+              type: 'doc',
+              label: 'calendargroup set',
+              id: 'cmd/outlook/calendargroup/calendargroup-set'
             }
           ]
         },
@@ -2441,6 +2446,11 @@ const sidebars: SidebarsConfig = {
         },
         {
           brandcenter: [
+            {
+              type: 'doc',
+              label: 'brandcenter colors list',
+              id: 'cmd/spo/brandcenter/brandcenter-colors-list'
+            },
             {
               type: 'doc',
               label: 'brandcenter settings list',

@@ -35,6 +35,7 @@ const dictionary = [
   'center',
   'checklist',
   'client',
+  'colors',
   'comm',
   'command',
   'community',
