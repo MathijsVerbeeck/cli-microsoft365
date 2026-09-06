@@ -23,7 +23,7 @@ enum SiteListState {
   archived = 'archived'
 }
 
-const options = z.strictObject({
+export const options = z.strictObject({
   ...globalOptionsZod.shape,
   type: zod.coercedEnum(SiteListType).optional().alias('t'),
   state: zod.coercedEnum(SiteListState).optional(),
