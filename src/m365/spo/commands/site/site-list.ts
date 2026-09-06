@@ -65,7 +65,7 @@ class SpoSiteListCommand extends SpoCommand {
         message: `When using withOneDriveSites, don't specify the type or webTemplate options`
       })
       .refine(o => !(o.withOneDriveSites && o.state !== undefined), {
-        message: 'When using withOneDriveSites, don\'t specify the state option'
+        message: `When using withOneDriveSites, don't specify the state option`
       });
   }
 
