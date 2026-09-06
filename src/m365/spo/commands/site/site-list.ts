@@ -174,4 +174,3 @@ class SpoSiteListCommand extends SpoCommand {
 }
 
 export default new SpoSiteListCommand();
-export { options };
